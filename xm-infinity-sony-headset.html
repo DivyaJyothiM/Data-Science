@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>XM-Infinity — Hear the Future | Sony</title>
+<meta name="description" content="XM-Infinity — a flagship Sony headset. An immersive, cinematic product experience." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --void:#040506;
+    --graphite:#0c0f12;
+    --gunmetal:#161a1e;
+    --steel:#3c444c;
+    --silver:#cfd6dc;
+    --silver-dim:#8b939b;
+    --accent:#33baff;
+    --accent-soft:rgba(51,186,255,0.32);
+    --accent-glow:rgba(51,186,255,0.55);
+    --line:rgba(255,255,255,0.08);
+    --ease-lux: cubic-bezier(.16,.84,.24,1);
+  }
+
+  *{ margin:0; padding:0; box-sizing:border-box; }
+
+  html{ background:var(--void); scroll-behavior:auto; }
+
+  body{
+    background:var(--void);
+    color:var(--silver);
+    font-family:'Inter', sans-serif;
+    font-weight:300;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+    cursor:default;
+  }
+
+  ::selection{ background:var(--accent); color:#04070a; }
+
+  h1,h2,h3, .display{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    letter-spacing:-0.02em;
+    color:#f3f6f8;
+  }
+
+  .mono{
+    font-family:'IBM Plex Mono', monospace;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+  }
+
+  a{ color:inherit; text-decoration:none; }
+  button{ font-family:inherit; cursor:pointer; border:none; background:none; color:inherit; }
+
+  /* ---------- persistent 3D stage ---------- */
+  #stage-wrap{
+    position:fixed;
+    inset:0;
+    z-index:1;
+    pointer-events:none;
+  }
+  #webgl{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    touch-action:pan-y;
+  }
+  #webgl.grabbable{ pointer-events:auto; cursor:grab; }
+  #webgl.grabbing{ cursor:grabbing; }
+
+  .stage-vignette{
+    position:absolute; inset:0;
+    background:
+      radial-gradient(ellipse at 50% 40%, rgba(0,0,0,0) 35%, rgba(0,0,0,0.55) 100%),
+      linear-gradient(180deg, rgba(4,5,6,0.15) 0%, rgba(4,5,6,0) 20%, rgba(4,5,6,0) 78%, rgba(4,5,6,0.9) 100%);
+    pointer-events:none;
+  }
+
+  /* ---------- HUD / signature scene counter ---------- */
+  #hud{
+    position:fixed;
+    left:28px; bottom:28px;
+    z-index:40;
+    font-size:11px;
+    color:var(--silver-dim);
+    display:flex; align-items:center; gap:10px;
+    pointer-events:none;
+    mix-blend-mode:screen;
+  }
+  #hud .dot{
+    width:6px;height:6px;border-radius:50%;
+    background:var(--accent);
+    box-shadow:0 0 10px 2px var(--accent-glow);
+    animation:pulseDot 2.4s ease-in-out infinite;
+  }
+  @keyframes pulseDot{ 0%,100%{opacity:.4;} 50%{opacity:1;} }
+  #hud .scene-name{ color:var(--silver); }
+
+  #reel{
+    position:fixed;
+    right:0; top:0;
+    width:2px; height:100%;
+    background:var(--line);
+    z-index:40;
+  }
+  #reel-fill{
+    width:100%; height:0%;
+    background:linear-gradient(180deg, var(--accent), rgba(51,186,255,0.1));
+    transition:height .05s linear;
+  }
+
+  /* ---------- nav ---------- */
+  header{
+    position:fixed; top:0; left:0; right:0;
+    z-index:50;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:26px 40px;
+    mix-blend-mode:difference;
+  }
+  .brand{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px; letter-spacing:0.28em; color:#fff; }
+  nav ul{ display:flex; gap:36px; list-style:none; }
+  nav a{ font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#e7e9eb; opacity:0.72; transition:opacity .3s var(--ease-lux); }
+  nav a:hover{ opacity:1; }
+  .nav-cta{
+    font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+    border:1px solid rgba(255,255,255,0.4); padding:9px 18px; border-radius:100px;
+    color:#fff; transition:background .3s var(--ease-lux), color .3s var(--ease-lux);
+  }
+  .nav-cta:hover{ background:#fff; color:#04070a; }
+
+  /* ---------- content layer ---------- */
+  #content{ position:relative; z-index:5; }
+
+  .scene{
+    position:relative;
+    min-height:100vh;
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    padding:0 8vw;
+  }
+
+  .eyebrow{
+    display:flex; align-items:center; gap:12px;
+    font-size:11px; color:var(--accent);
+    margin-bottom:22px;
+  }
+  .eyebrow::before{
+    content:''; width:26px; height:1px; background:var(--accent);
+  }
+
+  /* ---------- HERO ---------- */
+  #hero{
+    align-items:flex-start;
+    background:transparent;
+  }
+  #hero .hero-copy{ max-width:680px; }
+  #hero h1{
+    font-size:clamp(48px, 9vw, 118px);
+    line-height:0.98;
+    margin-bottom:26px;
+  }
+  #hero h1 span{ color:var(--accent); }
+  #hero p.sub{
+    font-size:17px; font-weight:300; color:var(--silver-dim);
+    max-width:440px; line-height:1.6; margin-bottom:44px;
+  }
+  .cta-row{ display:flex; gap:18px; align-items:center; }
+  .btn-primary{
+    background:var(--accent); color:#03151f;
+    font-size:13px; letter-spacing:0.08em; text-transform:uppercase; font-weight:600;
+    padding:16px 34px; border-radius:100px;
+    box-shadow:0 0 0 0 var(--accent-soft);
+    transition:box-shadow .4s var(--ease-lux), transform .4s var(--ease-lux);
+  }
+  .btn-primary:hover{ box-shadow:0 0 44px 4px var(--accent-soft); transform:translateY(-2px); }
+  .btn-ghost{
+    font-size:13px; letter-spacing:0.08em; text-transform:uppercase; color:var(--silver);
+    padding:16px 8px; border-bottom:1px solid var(--line);
+    transition:border-color .3s var(--ease-lux), color .3s var(--ease-lux);
+  }
+  .btn-ghost:hover{ border-color:var(--accent); color:#fff; }
+
+  .hero-hints{
+    position:absolute; bottom:40px; left:8vw; right:8vw;
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:11px; color:var(--silver-dim);
+  }
+  .hero-hints .hint{ display:flex; align-items:center; gap:10px; }
+  .scroll-line{
+    width:1px; height:34px; background:linear-gradient(180deg, var(--silver-dim), transparent);
+    animation:scrollLine 2.2s ease-in-out infinite;
+  }
+  @keyframes scrollLine{ 0%{ transform:scaleY(0); transform-origin:top; } 50%{ transform:scaleY(1); transform-origin:top; } 51%{ transform-origin:bottom; } 100%{ transform:scaleY(0); transform-origin:bottom; } }
+
+  /* ---------- INTRO ---------- */
+  #intro{ align-items:center; text-align:center; }
+  #intro .intro-copy{ max-width:760px; margin:0 auto; }
+  #intro h2{ font-size:clamp(28px,4.2vw,52px); line-height:1.28; font-weight:500; color:#dfe4e8; }
+  #intro h2 em{ font-style:normal; color:#fff; font-weight:600; }
+  #intro .eyebrow{ justify-content:center; }
+  #intro .eyebrow::before{ display:none; }
+
+  /* ---------- FEATURES ---------- */
+  .feature-scene{ align-items:center; }
+  .feature-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:40px; width:100%; align-items:center;
+  }
+  .feature-scene.reverse .feature-grid{ direction:rtl; }
+  .feature-scene.reverse .feature-text{ direction:ltr; }
+  .feature-text{ max-width:460px; }
+  .feature-text h3{ font-size:clamp(30px,4vw,54px); margin-bottom:20px; line-height:1.02; }
+  .feature-text p{ color:var(--silver-dim); font-size:15.5px; line-height:1.7; max-width:400px; }
+  .feature-index{ font-size:12px; color:var(--steel); margin-bottom:10px; }
+
+  /* ---------- HORIZONTAL ---------- */
+  #horizontal-wrap{ position:relative; height:100vh; overflow:hidden; }
+  #horizontal-wrap .h-inner{
+    position:relative; height:100%; width:100%;
+    display:flex; align-items:center;
+  }
+  .h-track{
+    display:flex;
+    height:100%;
+    align-items:center;
+    will-change:transform;
+  }
+  .h-panel{
+    min-width:100vw; height:100%;
+    display:flex; flex-direction:column; justify-content:center;
+    padding:0 8vw;
+    flex-shrink:0;
+  }
+  .h-panel .h-word{
+    font-family:'Space Grotesk',sans-serif; font-weight:700;
+    font-size:clamp(60px,11vw,150px); line-height:0.9; color:transparent;
+    -webkit-text-stroke:1px rgba(255,255,255,0.5);
+    margin-bottom:18px;
+  }
+  .h-panel.active .h-word{ color:#fff; -webkit-text-stroke:1px transparent; transition:color .6s var(--ease-lux); }
+  .h-panel .h-cap{ font-size:14px; color:var(--silver-dim); max-width:360px; line-height:1.6; }
+  .h-progress{
+    position:absolute; bottom:60px; left:8vw; right:8vw;
+    height:1px; background:var(--line);
+  }
+  .h-progress-fill{ height:100%; width:0%; background:var(--accent); }
+
+  /* ---------- TECH ---------- */
+  #tech{ align-items:center; }
+  #tech .tech-head{ text-align:center; max-width:600px; margin:0 auto 60px; }
+  #tech .tech-head h2{ font-size:clamp(32px,4.6vw,58px); }
+  .spec-grid{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
+    background:var(--line); width:100%; max-width:1040px; margin:0 auto;
+    border:1px solid var(--line);
+  }
+  .spec-cell{
+    background:var(--graphite); padding:34px 26px; position:relative; overflow:hidden;
+  }
+  .spec-cell .spec-label{ font-size:10.5px; color:var(--silver-dim); margin-bottom:14px; }
+  .spec-cell .spec-value{ font-size:30px; font-family:'Space Grotesk',sans-serif; font-weight:600; color:#fff; }
+  .spec-cell .spec-bar{ margin-top:16px; height:2px; background:var(--line); width:100%; }
+  .spec-cell .spec-bar i{ display:block; height:100%; width:0%; background:var(--accent); }
+
+  /* ---------- INTERACTIVE ---------- */
+  #interactive{ align-items:center; text-align:center; }
+  #interactive .int-head{ margin-bottom:52px; }
+  #interactive .int-head h2{ font-size:clamp(28px,4vw,48px); }
+  .hotspot-row{ display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-bottom:38px; }
+  .hotspot-btn{
+    font-size:12px; letter-spacing:0.06em; text-transform:uppercase;
+    padding:13px 22px; border:1px solid var(--line); border-radius:100px; color:var(--silver-dim);
+    transition:all .35s var(--ease-lux);
+  }
+  .hotspot-btn:hover, .hotspot-btn.on{
+    border-color:var(--accent); color:#fff; background:rgba(51,186,255,0.08);
+    box-shadow:0 0 22px rgba(51,186,255,0.18);
+  }
+  #hotspot-detail{
+    min-height:52px; max-width:520px; margin:0 auto 40px; font-size:14.5px; color:var(--silver-dim); line-height:1.6;
+    opacity:0; transition:opacity .4s var(--ease-lux);
+  }
+  #hotspot-detail.show{ opacity:1; }
+  .swatch-row{ display:flex; gap:16px; justify-content:center; margin-bottom:34px; }
+  .swatch{
+    width:30px; height:30px; border-radius:50%; border:2px solid rgba(255,255,255,0.15);
+    transition:transform .3s var(--ease-lux), border-color .3s var(--ease-lux);
+  }
+  .swatch:hover{ transform:translateY(-3px); }
+  .swatch.on{ border-color:#fff; box-shadow:0 0 0 3px rgba(255,255,255,0.08); }
+  #demo-btn{
+    font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:var(--silver);
+    border:1px solid var(--line); padding:14px 30px; border-radius:100px;
+    transition:all .35s var(--ease-lux);
+  }
+  #demo-btn:hover{ border-color:var(--accent); color:#fff; }
+  .drag-cue{ font-size:11px; color:var(--silver-dim); margin-top:26px; }
+
+  /* ---------- PROOF ---------- */
+  #proof{ background:var(--graphite); align-items:center; }
+  .quote-grid{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:50px; max-width:1100px; margin:0 auto;
+  }
+  .quote{ font-size:16px; line-height:1.7; color:#dfe4e8; font-weight:300; }
+  .quote .mark{ color:var(--accent); font-size:24px; display:block; margin-bottom:14px; font-family:'Space Grotesk',sans-serif; }
+  .quote .attr{ margin-top:18px; font-size:11.5px; color:var(--silver-dim); }
+  #proof .int-head{ text-align:center; margin-bottom:56px; }
+
+  /* ---------- CTA ---------- */
+  #cta{ align-items:center; text-align:center; background:linear-gradient(180deg, transparent, rgba(0,0,0,0.35)); }
+  #cta h2{ font-size:clamp(42px,8vw,100px); line-height:0.98; margin-bottom:22px; }
+  #cta .price-row{ display:flex; align-items:baseline; justify-content:center; gap:14px; margin:30px 0 40px; }
+  #cta .price{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:32px; color:#fff; }
+  #cta .price-note{ font-size:12px; color:var(--silver-dim); }
+
+  footer{
+    position:relative; z-index:5;
+    padding:30px 8vw 40px; display:flex; justify-content:space-between;
+    font-size:11px; color:var(--silver-dim); border-top:1px solid var(--line);
+  }
+
+  .fade-up{ opacity:0; transform:translateY(28px); }
+
+  @media (max-width: 860px){
+    header{ padding:20px 24px; }
+    nav ul{ display:none; }
+    .scene{ padding:0 6vw; }
+    .feature-grid{ grid-template-columns:1fr; }
+    .spec-grid{ grid-template-columns:repeat(2,1fr); }
+    .quote-grid{ grid-template-columns:1fr; gap:38px; }
+    #hud{ left:18px; bottom:18px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .scroll-line, #hud .dot{ animation:none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="stage-wrap">
+  <canvas id="webgl"></canvas>
+  <div class="stage-vignette"></div>
+</div>
+
+<div id="hud"><span class="dot"></span><span class="mono scene-name" id="hud-text">SC 01/08 — HERO</span></div>
+<div id="reel"><div id="reel-fill"></div></div>
+
+<header>
+  <div class="brand">SONY</div>
+  <nav>
+    <ul>
+      <li><a href="#features">Sound</a></li>
+      <li><a href="#tech">Engineering</a></li>
+      <li><a href="#interactive">Experience</a></li>
+    </ul>
+  </nav>
+  <a href="#cta" class="nav-cta">Buy Now</a>
+</header>
+
+<div id="content">
+
+  <section id="hero" class="scene">
+    <div class="hero-copy">
+      <div class="eyebrow mono">Flagship Audio — XM-Infinity</div>
+      <h1 class="fade-up">Hear the<br><span>Future.</span></h1>
+      <p class="sub fade-up">Engineered silence. Limitless sound. The XM-Infinity redefines what a headset can feel like — precision-tuned, hand-finished, built for the way you actually listen.</p>
+      <div class="cta-row fade-up">
+        <button class="btn-primary" id="hero-buy">Buy Now</button>
+        <a class="btn-ghost" href="#features">Explore Sound</a>
+      </div>
+    </div>
+    <div class="hero-hints">
+      <div class="hint"><span class="scroll-line"></span> Scroll to experience</div>
+      <div class="hint mono">Drag to rotate</div>
+    </div>
+  </section>
+
+  <section id="intro" class="scene">
+    <div class="intro-copy">
+      <div class="eyebrow mono">Act One — Vision</div>
+      <h2>Every part of the XM-Infinity was <em>argued over</em>, <em>re-machined</em>, and <em>listened to</em> hundreds of times before it earned its place — so the only thing left to notice is the sound.</h2>
+    </div>
+  </section>
+
+  <section id="features">
+    <div id="f1" class="scene feature-scene">
+      <div class="feature-grid">
+        <div class="feature-text">
+          <div class="feature-index mono">01 — Silence</div>
+          <h3>Industry-leading noise cancellation.</h3>
+          <p>Dual-mic adaptive ANC reads your environment forty times a second, dissolving engine drone, chatter, and static into nothing — without swallowing the room's air.</p>
+        </div>
+        <div></div>
+      </div>
+    </div>
+
+    <div id="f2" class="scene feature-scene reverse">
+      <div class="feature-grid">
+        <div></div>
+        <div class="feature-text">
+          <div class="feature-index mono">02 — Depth</div>
+          <h3>Bass you feel before you hear.</h3>
+          <p>A 40mm free-edge driver, tuned by hand, delivers low-end that stays controlled at any volume — full-bodied without ever turning muddy.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="f3" class="scene feature-scene">
+      <div class="feature-grid">
+        <div class="feature-text">
+          <div class="feature-index mono">03 — Endurance</div>
+          <h3>30 hours. One charge.</h3>
+          <p>A full studio week on a single charge, with ten hours back from a five-minute stop — built for the days that don't slow down for you.</p>
+        </div>
+        <div></div>
+      </div>
+    </div>
+
+    <div id="f4" class="scene feature-scene reverse">
+      <div class="feature-grid">
+        <div></div>
+        <div class="feature-text">
+          <div class="feature-index mono">04 — Touch</div>
+          <h3>Comfort that disappears.</h3>
+          <p>Memory-foam cushions in protein leather, a self-adjusting headband, and a shell weighing under 240g — the kind of comfort you stop noticing.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="horizontal-wrap">
+    <div class="h-inner">
+      <div class="h-track" id="h-track">
+        <div class="h-panel" data-color="0">
+          <div class="feature-index mono">Finish 01</div>
+          <div class="h-word">Onyx</div>
+          <div class="h-cap">Deep matte black, brushed steel hinges. Built for the studio and the stage alike.</div>
+        </div>
+        <div class="h-panel" data-color="1">
+          <div class="feature-index mono">Finish 02</div>
+          <div class="h-word">Lunar</div>
+          <div class="h-cap">Polished silver with a warm graphite trim — quiet luxury for the way you move through a day.</div>
+        </div>
+        <div class="h-panel" data-color="2">
+          <div class="feature-index mono">Finish 03</div>
+          <div class="h-word">Ion Blue</div>
+          <div class="h-cap">Signature accent finish. A quiet nod to the engineering underneath the surface.</div>
+        </div>
+        <div class="h-panel" data-color="3">
+          <div class="feature-index mono">Finish 04</div>
+          <div class="h-word">Titanium</div>
+          <div class="h-cap">Warm brushed titanium — the finish that ages best, made for the long haul.</div>
+        </div>
+      </div>
+    </div>
+    <div class="h-progress"><div class="h-progress-fill" id="h-progress-fill"></div></div>
+  </section>
+
+  <section id="tech" class="scene">
+    <div class="tech-head">
+      <div class="eyebrow mono" style="justify-content:center;"><span style="display:none"></span>Act Two — Engineering</div>
+      <h2>Specification, refined.</h2>
+    </div>
+    <div class="spec-grid">
+      <div class="spec-cell"><div class="spec-label mono">Drivers</div><div class="spec-value" data-count="40" data-suffix="mm">0mm</div><div class="spec-bar"><i data-w="88"></i></div></div>
+      <div class="spec-cell"><div class="spec-label mono">Battery Life</div><div class="spec-value" data-count="30" data-suffix="h">0h</div><div class="spec-bar"><i data-w="95"></i></div></div>
+      <div class="spec-cell"><div class="spec-label mono">Bluetooth</div><div class="spec-value" data-count="5.3" data-suffix="">0</div><div class="spec-bar"><i data-w="80"></i></div></div>
+      <div class="spec-cell"><div class="spec-label mono">Weight</div><div class="spec-value" data-count="238" data-suffix="g">0g</div><div class="spec-bar"><i data-w="70"></i></div></div>
+      <div class="spec-cell"><div class="spec-label mono">ANC Mics</div><div class="spec-value" data-count="8" data-suffix="">0</div><div class="spec-bar"><i data-w="76"></i></div></div>
+      <div class="spec-cell"><div class="spec-label mono">Codec</div><div class="spec-value" style="font-size:22px;">LDAC</div><div class="spec-bar"><i data-w="90"></i></div></div>
+      <div class="spec-cell"><div class="spec-label mono">Fast Charge</div><div class="spec-value" data-count="10" data-suffix="h/5m">0</div><div class="spec-bar"><i data-w="65"></i></div></div>
+      <div class="spec-cell"><div class="spec-label mono">Device Switch</div><div class="spec-value" data-count="2" data-suffix="-way">0</div><div class="spec-bar"><i data-w="82"></i></div></div>
+    </div>
+  </section>
+
+  <section id="interactive" class="scene">
+    <div class="int-head">
+      <div class="eyebrow mono" style="justify-content:center"><span style="display:none"></span>Act Three — Experience</div>
+      <h2>Explore it yourself.</h2>
+    </div>
+
+    <div class="hotspot-row">
+      <button class="hotspot-btn" data-focus="anc">Noise Cancellation</button>
+      <button class="hotspot-btn" data-focus="touch">Touch Controls</button>
+      <button class="hotspot-btn" data-focus="comfort">Comfort</button>
+    </div>
+    <div id="hotspot-detail"></div>
+
+    <div class="swatch-row" id="swatch-row">
+      <button class="swatch on" data-color="0" style="background:#141414"></button>
+      <button class="swatch" data-color="1" style="background:#c8ccd0"></button>
+      <button class="swatch" data-color="2" style="background:#2f8fd6"></button>
+      <button class="swatch" data-color="3" style="background:#8a7360"></button>
+    </div>
+
+    <button id="demo-btn">▶ Test the Sound</button>
+    <div class="drag-cue mono">Drag the model to rotate — release to resume</div>
+  </section>
+
+  <section id="proof" class="scene">
+    <div class="int-head">
+      <div class="eyebrow mono" style="justify-content:center"><span style="display:none"></span>Trusted by listeners</div>
+      <h2>What people notice first.</h2>
+    </div>
+    <div class="quote-grid">
+      <div class="quote"><span class="mark">“</span>The first pair that made me stop adjusting the EQ.<div class="attr mono">— Studio Engineer</div></div>
+      <div class="quote"><span class="mark">“</span>Silence, on demand, on a red-eye flight for once.<div class="attr mono">— Frequent Flyer</div></div>
+      <div class="quote"><span class="mark">“</span>I forget I'm wearing them by the second hour.<div class="attr mono">— Daily Commuter</div></div>
+    </div>
+  </section>
+
+  <section id="cta" class="scene">
+    <div class="eyebrow mono" style="justify-content:center"><span style="display:none"></span>Act Four — Own It</div>
+    <h2>Own the<br>silence.</h2>
+    <div class="price-row">
+      <div class="price">$399</div>
+      <div class="price-note">Free worldwide shipping · 30-night trial</div>
+    </div>
+    <button class="btn-primary" id="cta-buy">Pre-order Now</button>
+  </section>
+
+  <footer>
+    <div>© 2026 Sony Concept Lab — XM-Infinity</div>
+    <div>Design &amp; Engineering, reimagined.</div>
+  </footer>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+
+<script>
+(function(){
+  "use strict";
+
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var isMobile = window.innerWidth < 860;
+  gsap.registerPlugin(ScrollTrigger);
+
+  /* ============================================================
+     THREE.JS SCENE — persistent headset model
+  ============================================================ */
+  var canvas = document.getElementById('webgl');
+  var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.6 : 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(32, window.innerWidth/window.innerHeight, 0.1, 100);
+  camera.position.set(0, 0, 7.2);
+
+  // lighting
+  scene.add(new THREE.AmbientLight(0x384048, 1.1));
+  var key = new THREE.DirectionalLight(0xffffff, 1.6);
+  key.position.set(3.2, 4, 4.5);
+  scene.add(key);
+  var rim = new THREE.PointLight(0x33baff, 2.6, 20);
+  rim.position.set(-3.5, 1.2, -2.5);
+  scene.add(rim);
+  var fill = new THREE.PointLight(0x8fa2ad, 0.6, 20);
+  fill.position.set(-2, -2, 3);
+  scene.add(fill);
+
+  // ground contact shadow (fake, soft blob)
+  var shadowGeo = new THREE.CircleGeometry(2.1, 48);
+  var shadowMat = new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.35 });
+  var shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+  shadowMesh.rotation.x = -Math.PI/2;
+  shadowMesh.position.y = -1.7;
+  scene.add(shadowMesh);
+
+  var headsetGroup = new THREE.Group();
+  scene.add(headsetGroup);
+
+  var shellMaterial = new THREE.MeshStandardMaterial({ color:0x141414, metalness:0.75, roughness:0.28 });
+  var trimMaterial = new THREE.MeshStandardMaterial({ color:0xb8bec3, metalness:0.9, roughness:0.2 });
+  var cushionMaterial = new THREE.MeshStandardMaterial({ color:0x0c0c0e, roughness:0.85, metalness:0.05 });
+  var accentMaterial = new THREE.MeshStandardMaterial({ color:0x33baff, emissive:0x1a6f96, emissiveIntensity:0.4, metalness:0.4, roughness:0.35 });
+
+  // headband
+  var headband = new THREE.Mesh(new THREE.TorusGeometry(1.55, 0.09, 24, 64, Math.PI*1.02), shellMaterial);
+  headband.rotation.z = Math.PI/2 + (Math.PI - Math.PI*1.02)/2;
+  headband.position.y = 0.15;
+  headsetGroup.add(headband);
+
+  var headbandTrim = new THREE.Mesh(new THREE.TorusGeometry(1.55, 0.02, 12, 64, Math.PI*1.02), trimMaterial);
+  headbandTrim.rotation.copy(headband.rotation);
+  headbandTrim.position.copy(headband.position);
+  headbandTrim.position.z = 0.07;
+  headsetGroup.add(headbandTrim);
+
+  function buildEarCup(side){
+    var group = new THREE.Group();
+    var outer = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.58, 0.36, 32), shellMaterial);
+    outer.rotation.z = Math.PI/2;
+    group.add(outer);
+
+    var ring = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.03, 16, 40), trimMaterial);
+    ring.rotation.y = Math.PI/2;
+    ring.position.x = side * 0.19;
+    group.add(ring);
+
+    var cushion = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.16, 20, 40), cushionMaterial);
+    cushion.rotation.y = Math.PI/2;
+    cushion.position.x = side * 0.2;
+    group.add(cushion);
+
+    var touchPanel = new THREE.Mesh(new THREE.CircleGeometry(0.34, 32), accentMaterial);
+    touchPanel.rotation.y = Math.PI/2 * -1 * side;
+    touchPanel.position.x = side * 0.185;
+    touchPanel.material = accentMaterial.clone();
+    touchPanel.material.emissiveIntensity = 0.12;
+    group.add(touchPanel);
+
+    var yoke = new THREE.Mesh(new THREE.CylinderGeometry(0.045,0.045,0.55,12), trimMaterial);
+    yoke.position.set(0, 0.55, 0);
+    group.add(yoke);
+
+    group.userData = { outer: outer, ring: ring, cushion: cushion, touch: touchPanel };
+    group.position.x = side * 1.02;
+    return group;
+  }
+
+  var earL = buildEarCup(-1);
+  var earR = buildEarCup(1);
+  headsetGroup.add(earL, earR);
+
+  headsetGroup.position.y = -0.1;
+  headsetGroup.scale.setScalar(1.35);
+
+  // audio-wave rings (spawned on demand)
+  var waveRings = [];
+  function spawnWave(origin){
+    var geo = new THREE.TorusGeometry(0.5, 0.012, 12, 48);
+    var mat = new THREE.MeshBasicMaterial({ color:0x33baff, transparent:true, opacity:0.8 });
+    var mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(origin);
+    mesh.rotation.y = Math.PI/2;
+    mesh.scale.setScalar(0.4);
+    headsetGroup.add(mesh);
+    waveRings.push(mesh);
+    gsap.to(mesh.scale, { x:2.6, y:2.6, z:2.6, duration:1.3, ease:'power2.out' });
+    gsap.to(mat, { opacity:0, duration:1.3, ease:'power2.out', onComplete:function(){
+      headsetGroup.remove(mesh);
+      geo.dispose(); mat.dispose();
+      var idx = waveRings.indexOf(mesh);
+      if(idx>-1) waveRings.splice(idx,1);
+    }});
+  }
+  function playAudioDemo(){
+    spawnWave(new THREE.Vector3(-1.02, 0, 0));
+    spawnWave(new THREE.Vector3(1.02, 0, 0));
+    setTimeout(function(){
+      spawnWave(new THREE.Vector3(-1.02, 0, 0));
+      spawnWave(new THREE.Vector3(1.02, 0, 0));
+    }, 320);
+  }
+
+  /* ---------- state machine (targets lerped each frame) ---------- */
+  var current = { rotY: 0.5, rotX: 0.05, posX: 1.3, posY: 0, posZ: 0, camZ: 7.2, camY:0, fov: 32, explode: 0 };
+  var target  = { rotY: 0.5, rotX: 0.05, posX: 1.3, posY: 0, posZ: 0, camZ: 7.2, camY:0, fov: 32, explode: 0 };
+  var currentColor = new THREE.Color(0x141414);
+  var targetColor = new THREE.Color(0x141414);
+
+  var manualRotY = 0, manualRotX = 0;
+  var isDragging = false, dragStartX = 0, dragStartY = 0, dragStartManY=0, dragStartManX=0;
+  var lastInteraction = 0;
+  var idleEnabled = true;
+
+  function setColorIndex(idx){
+    var colors = [0x141414, 0xc8ccd0, 0x2f8fd6, 0x8a7360];
+    targetColor.set(colors[idx] || 0x141414);
+    document.querySelectorAll('.swatch').forEach(function(s){ s.classList.remove('on'); });
+    var el = document.querySelector('.swatch[data-color="'+idx+'"]');
+    if(el) el.classList.add('on');
+  }
+
+  var canvasInteractive = document.getElementById('webgl');
+  canvasInteractive.classList.add('grabbable');
+  canvasInteractive.style.pointerEvents = 'auto';
+
+  canvasInteractive.addEventListener('pointerdown', function(e){
+    isDragging = true;
+    lastInteraction = performance.now();
+    dragStartX = e.clientX; dragStartY = e.clientY;
+    dragStartManY = manualRotY; dragStartManX = manualRotX;
+    canvasInteractive.classList.add('grabbing');
+  });
+  window.addEventListener('pointermove', function(e){
+    if(!isDragging) return;
+    var dx = e.clientX - dragStartX;
+    var dy = e.clientY - dragStartY;
+    manualRotY = dragStartManY + dx * 0.006;
+    manualRotX = Math.max(-0.4, Math.min(0.4, dragStartManX + dy * 0.004));
+  });
+  window.addEventListener('pointerup', function(){
+    isDragging = false;
+    canvasInteractive.classList.remove('grabbing');
+  });
+
+  /* ============================================================
+     SCROLLTRIGGER — map sections to model state
+  ============================================================ */
+
+  function lerpTo(obj, key, a, b, p){ obj[key] = a + (b-a)*p; }
+
+  // HERO -> INTRO push-in
+  ScrollTrigger.create({
+    trigger: '#hero', start:'top top', endTrigger:'#intro', end:'bottom top', scrub:true,
+    onUpdate:function(self){
+      var p = self.progress;
+      lerpTo(target,'rotY', 0.5, 1.35, p);
+      lerpTo(target,'posX', 1.3, 0, p);
+      lerpTo(target,'camZ', 7.2, 5.4, p);
+      lerpTo(target,'fov', 32, 26, p);
+      idleEnabled = p < 0.05;
+    },
+    onToggle:function(self){ if(self.isActive) setHud('SC 01/08 — HERO'); }
+  });
+
+  ScrollTrigger.create({
+    trigger:'#intro', start:'top center', end:'bottom top', scrub:true,
+    onUpdate:function(self){ if(self.progress>0.05) setHud('SC 02/08 — VISION'); }
+  });
+
+  var featureConfigs = [
+    { id:'#f1', rotY:2.1, posX:-1.15, camZ:4.6, name:'SC 03/08 — SILENCE' },
+    { id:'#f2', rotY:3.6, posX:1.15,  camZ:4.4, name:'SC 04/08 — DEPTH' },
+    { id:'#f3', rotY:5.0, posX:-1.15, camZ:4.8, name:'SC 05/08 — ENDURANCE' },
+    { id:'#f4', rotY:6.3, posX:1.15,  camZ:4.6, name:'SC 06/08 — TOUCH' }
+  ];
+  var prevRot = 1.35, prevX = 0, prevZ = 5.4;
+  featureConfigs.forEach(function(cfg, i){
+    var fromRot = prevRot, fromX = prevX, fromZ = prevZ;
+    ScrollTrigger.create({
+      trigger: cfg.id, start:'top top', end:'bottom top', scrub:true, pin:true, pinSpacing:true,
+      onUpdate:function(self){
+        var p = self.progress;
+        lerpTo(target,'rotY', fromRot, cfg.rotY, p);
+        lerpTo(target,'posX', fromX, cfg.posX, p);
+        lerpTo(target,'camZ', fromZ, cfg.camZ, p);
+        lerpTo(target,'rotX', 0.05, i%2===0 ? 0.12 : -0.06, p);
+      },
+      onToggle:function(self){ if(self.isActive) setHud(cfg.name); }
+    });
+    prevRot = cfg.rotY; prevX = cfg.posX; prevZ = cfg.camZ;
+  });
+
+  // HORIZONTAL SCROLL
+  var track = document.getElementById('h-track');
+  var panels = gsap.utils.toArray('.h-panel');
+  var hProgressFill = document.getElementById('h-progress-fill');
+
+  ScrollTrigger.create({
+    trigger:'#horizontal-wrap', start:'top top', end: function(){ return '+=' + (track.scrollWidth); },
+    pin:true, scrub:1,
+    onUpdate:function(self){
+      var p = self.progress;
+      gsap.set(track, { x: -p * (track.scrollWidth - window.innerWidth) });
+      hProgressFill.style.width = (p*100) + '%';
+      lerpTo(target,'posX', 1.15, 1.6, 1);
+      lerpTo(target,'posZ', 0, -0.3, p);
+      lerpTo(target,'camZ', 4.6, 6.4, p);
+      var idx = Math.min(panels.length-1, Math.floor(p * panels.length));
+      panels.forEach(function(pn,i){ pn.classList.toggle('active', i===idx); });
+      setColorIndex(idx);
+      var swEl = document.querySelectorAll('.swatch')[idx];
+      if(swEl){ document.querySelectorAll('.swatch').forEach(function(s){s.classList.remove('on');}); swEl.classList.add('on'); }
+      setHud('SC 07/08 — FINISH · ' + (panels[idx] ? panels[idx].querySelector('.h-word').textContent.toUpperCase() : ''));
+    }
+  });
+
+  // TECH section — model recedes to corner, subtle explode
+  ScrollTrigger.create({
+    trigger:'#tech', start:'top bottom', end:'bottom top', scrub:true,
+    onUpdate:function(self){
+      var p = self.progress;
+      lerpTo(target,'posX', 1.6, -1.35, p);
+      lerpTo(target,'posY', 0, 0.55, p);
+      lerpTo(target,'camZ', 6.4, 8.4, p);
+      lerpTo(target,'explode', 0, 0.18, p);
+      lerpTo(target,'rotY', target.rotY, 7.4, p*0.4);
+      if(p>0.1) setHud('SC 07/08 — ENGINEERING');
+    }
+  });
+
+  // reveal counters + bars when tech visible
+  ScrollTrigger.create({
+    trigger:'#tech', start:'top 70%', once:true,
+    onEnter:function(){
+      document.querySelectorAll('.spec-value[data-count]').forEach(function(el){
+        var end = parseFloat(el.getAttribute('data-count'));
+        var suffix = el.getAttribute('data-suffix') || '';
+        var obj = { v:0 };
+        gsap.to(obj, { v:end, duration:1.4, ease:'power2.out', onUpdate:function(){
+          var display = (end % 1 !== 0) ? obj.v.toFixed(1) : Math.round(obj.v);
+          el.textContent = display + suffix;
+        }});
+      });
+      document.querySelectorAll('.spec-bar i').forEach(function(bar){
+        gsap.to(bar, { width: bar.getAttribute('data-w') + '%', duration:1.2, ease:'power3.out' });
+      });
+    }
+  });
+
+  // INTERACTIVE section — model settles centered, larger
+  ScrollTrigger.create({
+    trigger:'#interactive', start:'top center', end:'bottom center', scrub:true,
+    onUpdate:function(self){
+      var p = self.progress;
+      lerpTo(target,'posX', -1.35, 0, Math.min(p*2,1));
+      lerpTo(target,'posY', 0.55, 0, p);
+      lerpTo(target,'camZ', 8.4, 5.6, p);
+      lerpTo(target,'explode', 0.18, 0, p);
+      if(p>0.1) setHud('SC 08/08 — EXPERIENCE');
+    }
+  });
+
+  // PROOF — model fades back, dim
+  ScrollTrigger.create({
+    trigger:'#proof', start:'top bottom', end:'bottom top', scrub:true,
+    onUpdate:function(self){
+      var p = self.progress;
+      renderer.domElement.style.opacity = 1 - Math.min(p*1.6, 0.82);
+      lerpTo(target,'camZ', 5.6, 9, p);
+      lerpTo(target,'posY', 0, -0.4, p);
+    }
+  });
+
+  // CTA — iconic centered beauty shot
+  ScrollTrigger.create({
+    trigger:'#cta', start:'top bottom', end:'top 30%', scrub:true,
+    onUpdate:function(self){
+      var p = self.progress;
+      renderer.domElement.style.opacity = 0.18 + p*0.82;
+      lerpTo(target,'posX', 0, 0, p);
+      lerpTo(target,'posY', -0.4, 0, p);
+      lerpTo(target,'camZ', 9, 5.9, p);
+      lerpTo(target,'rotY', target.rotY, 8.5, p*0.5);
+      if(p>0.2) setHud('SC 08/08 — OWN IT');
+    }
+  });
+
+  /* ---------- HUD ---------- */
+  var hudText = document.getElementById('hud-text');
+  var lastHud = '';
+  function setHud(txt){ if(txt!==lastHud){ hudText.textContent = txt; lastHud = txt; } }
+
+  var reelFill = document.getElementById('reel-fill');
+  ScrollTrigger.create({
+    trigger:document.body, start:'top top', end:'bottom bottom', scrub:true,
+    onUpdate:function(self){ reelFill.style.height = (self.progress*100)+'%'; }
+  });
+
+  /* ---------- hotspot interactions ---------- */
+  var focusCopy = {
+    anc: 'Dual feed-forward and feed-back mics sample the outside world 40x per second — the ear cup you\'re looking at right now is doing the cancelling.',
+    touch: 'The circular panel on each ear cup reads swipes and taps — volume, playback, and calls, without ever touching a phone.',
+    comfort: 'Protein-leather cushions and a self-adjusting headband distribute weight evenly, so nothing presses after hour three.'
+  };
+  var hotspotDetail = document.getElementById('hotspot-detail');
+  document.querySelectorAll('.hotspot-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.hotspot-btn').forEach(function(b){ b.classList.remove('on'); });
+      btn.classList.add('on');
+      var key = btn.getAttribute('data-focus');
+      hotspotDetail.textContent = focusCopy[key];
+      hotspotDetail.classList.add('show');
+
+      [earL, earR].forEach(function(cup){
+        gsap.to(cup.userData.touch.material, { emissiveIntensity: key==='touch' ? 0.9 : 0.12, duration:0.5 });
+        gsap.to(cup.userData.ring.material.color, { r: key==='comfort'? 0.2:0.72, g:key==='comfort'?0.72:0.75, b: key==='comfort'?0.85:0.79, duration:0.5 });
+      });
+      if(key==='anc') playAudioDemo();
+    });
+  });
+
+  document.querySelectorAll('.swatch').forEach(function(sw){
+    sw.addEventListener('click', function(){ setColorIndex(parseInt(sw.getAttribute('data-color'),10)); });
+  });
+
+  document.getElementById('demo-btn').addEventListener('click', playAudioDemo);
+
+  ['hero-buy','cta-buy'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) el.addEventListener('click', function(){
+      document.getElementById('cta').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' });
+    });
+  });
+
+  /* ============================================================
+     RENDER LOOP
+  ============================================================ */
+  var lerpSpeed = reduced ? 1 : (isMobile ? 0.11 : 0.075);
+  var idlePhase = 0;
+
+  function animate(t){
+    requestAnimationFrame(animate);
+
+    // idle auto-rotation before interaction
+    if(idleEnabled && !isDragging && manualRotY === 0){
+      idlePhase += 0.0022;
+      target.rotY += Math.sin(idlePhase)*0.00002;
+    }
+
+    for(var k in target){ current[k] += (target[k]-current[k]) * lerpSpeed; }
+    currentColor.lerp(targetColor, reduced?1:0.06);
+
+    headsetGroup.rotation.y = current.rotY + manualRotY;
+    headsetGroup.rotation.x = current.rotX + manualRotX;
+    headsetGroup.position.x = current.posX;
+    headsetGroup.position.y = current.posY - 0.1;
+    headsetGroup.position.z = current.posZ;
+
+    earL.position.x = -1.02 - current.explode*0.4;
+    earR.position.x = 1.02 + current.explode*0.4;
+
+    camera.position.z = current.camZ;
+    camera.fov = current.fov;
+    camera.updateProjectionMatrix();
+
+    shellMaterial.color.copy(currentColor);
+
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(animate);
+
+  window.addEventListener('resize', function(){
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    ScrollTrigger.refresh();
+  });
+
+  /* ---------- entrance + generic reveals ---------- */
+  gsap.to('.fade-up', { opacity:1, y:0, duration:1.1, stagger:0.12, ease:'power3.out', delay:0.2 });
+
+  gsap.utils.toArray('.feature-text').forEach(function(el){
+    gsap.fromTo(el, { opacity:0, y:26 }, {
+      opacity:1, y:0, duration:1,
+      scrollTrigger:{ trigger: el, start:'top 75%', toggleActions:'play none none reverse' }
+    });
+  });
+
+  gsap.utils.toArray('#intro h2, #tech .tech-head, #interactive .int-head, #proof .int-head, #cta h2, #cta .price-row, #cta .btn-primary').forEach(function(el){
+    gsap.fromTo(el, { opacity:0, y:22 }, {
+      opacity:1, y:0, duration:0.9,
+      scrollTrigger:{ trigger: el, start:'top 82%', toggleActions:'play none none reverse' }
+    });
+  });
+
+  ScrollTrigger.refresh();
+})();
+</script>
+
+</body>
+</html>
